@@ -73,8 +73,7 @@ If starting the motors browns out the ESP32, add a 470–1000 µF bulk capacitor
 | STOP button | Stop both motors |
 
 ## Key Challenges
-<!-- Edit this section to describe your own experience. -->
-The main challenge was power. When a motor started at full power, its inrush current sagged the supply enough to brown out and reset the ESP32 mid-match. I added a soft-start ramp in the firmware so the motors build up speed over about 170 ms, and recommended a bulk capacitor across the L298N input. Safety was the other priority: a robot that keeps driving after its controller disconnects is dangerous at a live event. So I added several stop conditions: a firmware watchdog, a stop on disconnect, and a stop when the browser loses focus.
+The main challenge was power. When a motor started at full power, its inrush current sagged the supply enough to brown out and reset the ESP32 mid-match. I added a soft-start ramp in the firmware so the motors build up speed over about 170 ms. Safety was the other priority: a robot that keeps driving after its controller disconnects is dangerous at a live event. So I added several stop conditions: a stop on disconnect, and a stop when the browser loses focus.
 
 ## Licence
 MIT. See [LICENSE](LICENSE).

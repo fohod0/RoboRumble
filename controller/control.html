@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Robo Rumble — Bluetooth WASD</title>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --panel: #151a24;
+    --border: #2a3242;
+    --text: #e8ecf4;
+    --muted: #6b7280;
+    --accent: #3b82f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 16px 40px;
+  }
+  h1 { font-size: 1.4rem; margin: 4px 0 18px; }
+
+  .card {
+    width: 100%; max-width: 420px;
+    background: var(--panel); border: 2px solid var(--border); border-radius: 14px;
+    padding: 16px 18px; margin-bottom: 18px;
+  }
+  .card h2 {
+    font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); margin: 0 0 10px;
+  }
+
+  #how-to ol { margin: 0; padding-left: 20px; font-size: 0.88rem; line-height: 1.7; }
+  #how-to li span.key-hint {
+    display: inline-block; font-family: ui-monospace, monospace; background: #0e1219;
+    border: 1px solid var(--border); border-radius: 4px; padding: 0 6px; margin: 0 1px;
+  }
+
+  #status {
+    font-size: 0.95rem; font-weight: 700; margin-bottom: 18px; padding: 10px 16px;
+    border-radius: 10px; background: var(--panel); border: 2px solid var(--border);
+    text-align: center; width: 100%; max-width: 420px;
+  }
+  #status.ok { color: #22c55e; }
+  #status.bad { color: #ef4444; }
+  #status.pending { color: #eab308; }
+
+  #connect-btn {
+    padding: 16px 32px; border-radius: 12px; border: none;
+    background: var(--accent); color: #fff; font-size: 1.05rem; font-weight: 800;
+    cursor: pointer; margin-bottom: 22px;
+  }
+  #connect-btn:disabled { opacity: 0.5; cursor: default; }
+
+  #readout {
+    font-size: 1.05rem; font-weight: 700; margin-bottom: 22px;
+    padding: 12px 20px; border-radius: 12px; background: var(--panel); border: 2px solid var(--border);
+  }
+  #readout .val { color: var(--accent); }
+
+  #keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 70px);
+    grid-template-rows: repeat(2, 70px);
+    gap: 8px;
+    margin-bottom: 22px;
+  }
+  .key {
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px; border: 2px solid var(--border); background: var(--panel);
+    font-size: 1.2rem; font-weight: 800; color: var(--muted);
+    user-select: none; text-transform: uppercase;
+  }
+  .key.active { border-color: var(--accent); background: #1c2942; color: #93c5fd; }
+  #key-forward  { grid-column: 2; grid-row: 1; }
+  #key-left     { grid-column: 1; grid-row: 2; }
+  #key-backward { grid-column: 2; grid-row: 2; }
+  #key-right    { grid-column: 3; grid-row: 2; }
+
+  #stop-btn {
+    padding: 18px 60px; border-radius: 14px; border: none;
+    background: #b91c1c; color: #fff; font-size: 1.1rem; font-weight: 800;
+    letter-spacing: 0.05em; cursor: pointer; margin-bottom: 22px;
+  }
+  #stop-btn:active { background: #7f1d1d; }
+
+  #formula-card .hint { font-size: 0.78rem; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
+  .formula-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .formula-row label { font-size: 0.85rem; font-weight: 700; width: 88px; flex-shrink: 0; }
+  .formula-row input {
+    flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 2px solid var(--border);
+    background: #0e1219; color: var(--text); font-size: 0.95rem; font-family: ui-monospace, monospace;
+  }
+  .formula-row input.invalid { border-color: #ef4444; }
+  .formula-err { color: #f87171; font-size: 0.78rem; margin: -4px 0 8px 96px; }
+  #save-formula-btn {
+    width: 100%; padding: 10px; border-radius: 8px; border: none;
+    background: var(--accent); color: #fff; font-weight: 700; font-size: 0.9rem; cursor: pointer;
+  }
+
+  .rebind-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .rebind-row:last-of-type { border-bottom: none; }
+  .rebind-row .label { font-size: 0.9rem; font-weight: 600; }
+  .rebind-btn {
+    font-family: ui-monospace, monospace; font-size: 0.9rem; font-weight: 700;
+    padding: 6px 14px; min-width: 64px; text-align: center;
+    border-radius: 8px; border: 2px solid var(--border); background: #0e1219; color: var(--text);
+    cursor: pointer; text-transform: uppercase;
+  }
+  .rebind-btn.listening { border-color: #eab308; color: #eab308; }
+  #reset-controls-btn {
+    margin-top: 10px; width: 100%; padding: 8px; border-radius: 8px; border: 2px solid var(--border);
+    background: transparent; color: var(--muted); font-size: 0.8rem; cursor: pointer;
+  }
+
+  footer {
+    margin-top: 12px; font-size: 0.78rem; color: var(--muted); text-align: center;
+    max-width: 420px; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+  <h1>🤖 Robo Rumble — Bluetooth WASD</h1>
+
+  <div class="card" id="how-to">
+    <h2>How to connect</h2>
+    <ol>
+      <li>Make sure Bluetooth is turned on on this laptop.</li>
+      <li>Click <b>Connect via Bluetooth</b> below.</li>
+      <li>In the popup, select your robot (e.g. <i>RoboRumble-ESP1</i>) and click <b>Pair</b>/<b>Connect</b>.</li>
+      <li>Once it says <b>Connected to…</b>, hold your drive keys (default <span class="key-hint">W</span><span class="key-hint">A</span><span class="key-hint">S</span><span class="key-hint">D</span>) to drive — combine two for a turning drive, e.g. Forward+Right.</li>
+    </ol>
+  </div>
+
+  <div id="status" class="bad">Not connected</div>
+  <button id="connect-btn">Connect via Bluetooth</button>
+
+  <div id="readout">Left: <span class="val" id="left-val">stopped</span> &nbsp;·&nbsp; Right: <span class="val" id="right-val">stopped</span></div>
+
+  <div id="keypad">
+    <div class="key" id="key-forward">W</div>
+    <div class="key" id="key-left">A</div>
+    <div class="key" id="key-backward">S</div>
+    <div class="key" id="key-right">D</div>
+  </div>
+
+  <button id="stop-btn">STOP</button>
+
+  <div class="card" id="formula-card">
+    <h2>Drive equations</h2>
+    <div class="hint">V = forward key (+1) / backward key (−1) &nbsp;·&nbsp; H = right key (+1) / left key (−1)<br>Allowed: numbers, V, H, + − × ÷, parentheses. e.g. <code>V + H</code>, <code>V - 0.5*H</code></div>
+    <div class="formula-row">
+      <label for="left-formula">Left (ENA) =</label>
+      <input id="left-formula" type="text" spellcheck="false" value="V + H">
+    </div>
+    <div class="formula-err" id="left-formula-err"></div>
+    <div class="formula-row">
+      <label for="right-formula">Right (ENB) =</label>
+      <input id="right-formula" type="text" spellcheck="false" value="V - H">
+    </div>
+    <div class="formula-err" id="right-formula-err"></div>
+    <button id="save-formula-btn">Save formulas</button>
+  </div>
+
+  <div class="card" id="controls-card">
+    <h2>Controls</h2>
+    <div class="rebind-row">
+      <span class="label">Forward</span>
+      <button class="rebind-btn" data-action="forward"></button>
+    </div>
+    <div class="rebind-row">
+      <span class="label">Backward</span>
+      <button class="rebind-btn" data-action="backward"></button>
+    </div>
+    <div class="rebind-row">
+      <span class="label">Turn left</span>
+      <button class="rebind-btn" data-action="left"></button>
+    </div>
+    <div class="rebind-row">
+      <span class="label">Turn right</span>
+      <button class="rebind-btn" data-action="right"></button>
+    </div>
+    <button id="reset-controls-btn">Reset to WASD</button>
+  </div>
+
+  <footer>
+    Click a key above to rebind it — press any key to set it (swaps
+    automatically if that key is already used elsewhere). Edit the drive
+    equations above to change how V/H combine into wheel speed — invalid
+    formulas are rejected and never reach the motors. Both are saved on
+    this computer. Works in Chrome or Edge on desktop only — Web Bluetooth
+    isn't supported in Safari or on iOS. Releasing all keys, clicking STOP,
+    closing this tab, or losing the Bluetooth link all stop the motors
+    immediately.
+  </footer>
+
+<script>
+  const SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+  const RX_CHAR_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+  const SEND_INTERVAL_MS = 150; // keepalive cadence - must stay well under the ESP's 400ms watchdog
+  const STORAGE_KEY = 'roborumble-ble-keybindings';
+  const FORMULA_STORAGE_KEY = 'roborumble-ble-formulas';
+  const DEFAULT_BINDINGS = { forward: 'w', backward: 's', left: 'a', right: 'd' };
+  const DEFAULT_FORMULAS = { left: 'V + H', right: 'V - H' };
+  const ACTIONS = ['forward', 'backward', 'left', 'right'];
+
+  let device = null;
+  let rxChar = null;
+  let ticker = null;
+  const held = new Set(); // holds actions ('forward'/'backward'/'left'/'right'), not raw keys
+  let bindings = loadBindings();
+  let listeningFor = null; // action currently waiting for a key press to rebind
+  let formulas = loadFormulas();
+  let leftFn = compileFormula(formulas.left);
+  let rightFn = compileFormula(formulas.right);
+
+  // ---------- tiny safe formula parser ----------
+  // Supports: numbers, V, H, + - * / (), unary minus. Nothing else - no eval(), no Function().
+  // Returns a function (V, H) => number, or throws Error with a human-readable message.
+  function compileFormula(expr) {
+    if (typeof expr !== 'string') throw new Error('Formula must be text');
+    if (!/^[0-9VHvh+\-*/(). \s]*$/.test(expr)) {
+      throw new Error('Only numbers, V, H, + - * / ( ) and spaces are allowed');
+    }
+
+    let i = 0;
+    const s = expr;
+
+    function skipWs() {
+      while (i < s.length && /\s/.test(s[i])) i++;
+    }
+
+    function parseExpr() {
+      let node = parseTerm();
+      skipWs();
+      while (i < s.length && (s[i] === '+' || s[i] === '-')) {
+        const op = s[i];
+        i++;
+        const rhs = parseTerm();
+        const lhs = node;
+        node = (V, H) => (op === '+' ? lhs(V, H) + rhs(V, H) : lhs(V, H) - rhs(V, H));
+        skipWs();
+      }
+      return node;
+    }
+
+    function parseTerm() {
+      let node = parseFactor();
+      skipWs();
+      while (i < s.length && (s[i] === '*' || s[i] === '/')) {
+        const op = s[i];
+        i++;
+        const rhs = parseFactor();
+        const lhs = node;
+        node = (V, H) => (op === '*' ? lhs(V, H) * rhs(V, H) : lhs(V, H) / rhs(V, H));
+        skipWs();
+      }
+      return node;
+    }
+
+    function parseFactor() {
+      skipWs();
+      if (s[i] === '-') {
+        i++;
+        const f = parseFactor();
+        return (V, H) => -f(V, H);
+      }
+      if (s[i] === '+') {
+        i++;
+        return parseFactor();
+      }
+      if (s[i] === '(') {
+        i++;
+        const node = parseExpr();
+        skipWs();
+        if (s[i] !== ')') throw new Error('Missing closing parenthesis');
+        i++;
+        return node;
+      }
+      if (s[i] === 'V' || s[i] === 'v') {
+        i++;
+        return (V) => V;
+      }
+      if (s[i] === 'H' || s[i] === 'h') {
+        i++;
+        return (V, H) => H;
+      }
+      const start = i;
+      while (i < s.length && /[0-9.]/.test(s[i])) i++;
+      if (i === start) {
+        throw new Error(i < s.length ? `Unexpected "${s[i]}"` : 'Unexpected end of formula');
+      }
+      const num = parseFloat(s.slice(start, i));
+      if (Number.isNaN(num)) throw new Error('Invalid number');
+      return () => num;
+    }
+
+    skipWs();
+    if (s.length === 0) throw new Error('Formula cannot be empty');
+    const fn = parseExpr();
+    skipWs();
+    if (i !== s.length) throw new Error(`Unexpected trailing text: "${s.slice(i)}"`);
+
+    const test = fn(0, 0);
+    if (typeof test !== 'number' || Number.isNaN(test)) throw new Error("Formula doesn't evaluate to a number");
+    return fn;
+  }
+
+  // ---------- drive formulas (persisted, user-editable) ----------
+  function loadFormulas() {
+    try {
+      const raw = localStorage.getItem(FORMULA_STORAGE_KEY);
+      if (!raw) return { ...DEFAULT_FORMULAS };
+      const parsed = JSON.parse(raw);
+      const result = { ...DEFAULT_FORMULAS };
+      ['left', 'right'].forEach((f) => {
+        if (typeof parsed[f] === 'string' && parsed[f].length > 0) result[f] = parsed[f];
+      });
+      return result;
+    } catch {
+      return { ...DEFAULT_FORMULAS };
+    }
+  }
+
+  function saveFormulas() {
+    try {
+      localStorage.setItem(FORMULA_STORAGE_KEY, JSON.stringify(formulas));
+    } catch {
+      // localStorage unavailable (private browsing, etc.) - formulas just won't persist across reloads.
+    }
+  }
+
+  function renderFormulaInputs() {
+    ['left', 'right'].forEach((f) => {
+      const input = document.getElementById(f + '-formula');
+      if (document.activeElement !== input && !input.classList.contains('invalid')) {
+        input.value = formulas[f];
+      }
+    });
+  }
+
+  document.getElementById('save-formula-btn').addEventListener('click', () => {
+    const leftInput = document.getElementById('left-formula');
+    const rightInput = document.getElementById('right-formula');
+    let ok = true;
+
+    try {
+      const fn = compileFormula(leftInput.value);
+      leftInput.classList.remove('invalid');
+      document.getElementById('left-formula-err').textContent = '';
+      formulas.left = leftInput.value;
+      leftFn = fn;
+    } catch (err) {
+      leftInput.classList.add('invalid');
+      document.getElementById('left-formula-err').textContent = err.message;
+      ok = false;
+    }
+
+    try {
+      const fn = compileFormula(rightInput.value);
+      rightInput.classList.remove('invalid');
+      document.getElementById('right-formula-err').textContent = '';
+      formulas.right = rightInput.value;
+      rightFn = fn;
+    } catch (err) {
+      rightInput.classList.add('invalid');
+      document.getElementById('right-formula-err').textContent = err.message;
+      ok = false;
+    }
+
+    if (ok) saveFormulas();
+    // Recomputed on the next tick either way, using whichever formulas are
+    // currently valid - a rejected edit never reaches the motors.
+    sendCurrent();
+  });
+
+  ['left', 'right'].forEach((f) => {
+    document.getElementById(f + '-formula').addEventListener('input', () => {
+      document.getElementById(f + '-formula').classList.remove('invalid');
+      document.getElementById(f + '-formula-err').textContent = '';
+    });
+  });
+
+  // ---------- key bindings (persisted, user-editable) ----------
+  function loadBindings() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { ...DEFAULT_BINDINGS };
+      const parsed = JSON.parse(raw);
+      const result = { ...DEFAULT_BINDINGS };
+      ACTIONS.forEach((a) => {
+        if (typeof parsed[a] === 'string' && parsed[a].length > 0) result[a] = parsed[a];
+      });
+      return result;
+    } catch {
+      return { ...DEFAULT_BINDINGS };
+    }
+  }
+
+  function saveBindings() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(bindings));
+    } catch {
+      // localStorage unavailable (private browsing, etc.) - bindings just won't persist across reloads.
+    }
+  }
+
+  function renderBindings() {
+    ACTIONS.forEach((action) => {
+      const btn = document.querySelector(`.rebind-btn[data-action="${action}"]`);
+      btn.textContent = listeningFor === action ? 'press a key…' : bindings[action];
+      btn.classList.toggle('listening', listeningFor === action);
+    });
+    document.querySelectorAll('.key').forEach((el) => {
+      const action = el.id.replace('key-', '');
+      el.textContent = bindings[action];
+    });
+  }
+
+  document.querySelectorAll('.rebind-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      listeningFor = listeningFor === btn.dataset.action ? null : btn.dataset.action;
+      renderBindings();
+    });
+  });
+
+  document.getElementById('reset-controls-btn').addEventListener('click', () => {
+    bindings = { ...DEFAULT_BINDINGS };
+    listeningFor = null;
+    saveBindings();
+    renderBindings();
+  });
+
+  // ---------- connection ----------
+  function setStatus(text, cls) {
+    const el = document.getElementById('status');
+    el.textContent = text;
+    el.className = cls;
+  }
+
+  function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+  async function connect() {
+    if (!navigator.bluetooth) {
+      setStatus('Web Bluetooth not available - use Chrome or Edge on desktop', 'bad');
+      return;
+    }
+    const btn = document.getElementById('connect-btn');
+    btn.disabled = true;
+    setStatus('Choose your robot in the popup…', 'pending');
+    try {
+      device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: [SERVICE_UUID] }],
+      });
+      device.addEventListener('gattserverdisconnected', onDisconnected);
+
+      setStatus('Connecting…', 'pending');
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(SERVICE_UUID);
+      rxChar = await service.getCharacteristic(RX_CHAR_UUID);
+
+      setStatus('Connected to ' + (device.name || 'robot'), 'ok');
+    } catch (err) {
+      setStatus('Connection failed: ' + err.message, 'bad');
+      rxChar = null;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function onDisconnected() {
+    setStatus('Disconnected', 'bad');
+    rxChar = null;
+    held.clear();
+    renderBindings();
+    stopTicker();
+  }
+
+  // ---------- drive logic ----------
+  function computeSpeeds() {
+    const V = (held.has('forward') ? 1 : 0) - (held.has('backward') ? 1 : 0);
+    const H = (held.has('right') ? 1 : 0) - (held.has('left') ? 1 : 0);
+
+    let leftRaw = 0;
+    let rightRaw = 0;
+    try { leftRaw = leftFn(V, H); } catch { leftRaw = 0; }
+    try { rightRaw = rightFn(V, H); } catch { rightRaw = 0; }
+    if (!Number.isFinite(leftRaw)) leftRaw = 0;
+    if (!Number.isFinite(rightRaw)) rightRaw = 0;
+
+    const left = Math.round(clamp(leftRaw, -1, 1) * 255);
+    const right = Math.round(clamp(rightRaw, -1, 1) * 255);
+    return { left, right };
+  }
+
+  function fmt(speed) {
+    if (speed === 0) return 'stopped';
+    const pct = Math.round((Math.abs(speed) / 255) * 100);
+    return (speed > 0 ? 'fwd ' : 'rev ') + pct + '%';
+  }
+
+  async function sendCurrent() {
+    const { left, right } = computeSpeeds();
+    document.getElementById('left-val').textContent = fmt(left);
+    document.getElementById('right-val').textContent = fmt(right);
+    if (!rxChar) return;
+    const bytes = new TextEncoder().encode(`M:${left},${right}`);
+    try {
+      await rxChar.writeValueWithoutResponse(bytes);
+    } catch (err) {
+      console.warn('BLE write failed:', err.message);
+    }
+  }
+
+  function ensureTicker() {
+    if (ticker) return;
+    // Keeps sending the current value even while held perfectly still -
+    // the ESP's watchdog needs to keep seeing SOMETHING or it force-stops.
+    ticker = setInterval(sendCurrent, SEND_INTERVAL_MS);
+  }
+  function stopTicker() {
+    if (ticker) {
+      clearInterval(ticker);
+      ticker = null;
+    }
+  }
+
+  function updateKeyVisuals() {
+    ACTIONS.forEach((action) => {
+      document.getElementById('key-' + action).classList.toggle('active', held.has(action));
+    });
+  }
+
+  function actionForKey(key) {
+    return ACTIONS.find((a) => bindings[a] === key) || null;
+  }
+
+  function onKeyDown(e) {
+    const k = e.key.toLowerCase();
+
+    if (listeningFor) {
+      e.preventDefault();
+      rebind(listeningFor, k);
+      return;
+    }
+
+    const action = actionForKey(k);
+    if (!action) return;
+    e.preventDefault();
+    if (held.has(action)) return; // ignore OS key-repeat
+    held.add(action);
+    updateKeyVisuals();
+    sendCurrent();
+    ensureTicker();
+  }
+
+  function onKeyUp(e) {
+    const action = actionForKey(e.key.toLowerCase());
+    if (!action) return;
+    e.preventDefault();
+    held.delete(action);
+    updateKeyVisuals();
+    if (held.size === 0) {
+      stopTicker();
+    }
+    sendCurrent();
+  }
+
+  function rebind(action, key) {
+    // If another action already uses this key, swap the two bindings so no
+    // key is ever assigned to more than one action at once.
+    const other = actionForKey(key);
+    if (other && other !== action) {
+      bindings[other] = bindings[action];
+    }
+    bindings[action] = key;
+    listeningFor = null;
+    held.clear();
+    updateKeyVisuals();
+    stopTicker();
+    saveBindings();
+    renderBindings();
+  }
+
+  // Safety: if the page/window loses focus (alt-tab, click elsewhere) a
+  // keyup can be missed entirely, leaving a key "stuck" held - so treat
+  // losing focus the same as releasing everything.
+  window.addEventListener('blur', () => {
+    if (held.size === 0) return;
+    held.clear();
+    updateKeyVisuals();
+    stopTicker();
+    sendCurrent();
+  });
+
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+
+  document.getElementById('connect-btn').addEventListener('click', connect);
+  document.getElementById('stop-btn').addEventListener('click', () => {
+    held.clear();
+    updateKeyVisuals();
+    stopTicker();
+    sendCurrent();
+  });
+
+  renderBindings();
+  renderFormulaInputs();
+
+  if (!navigator.bluetooth) {
+    setStatus('Web Bluetooth not available - use Chrome or Edge on desktop', 'bad');
+  }
+</script>
+</body>
+</html>

@@ -4,6 +4,10 @@ Firmware and Bluetooth control page for UCD Elecsoc's RoboRumble robotic car eve
 ## Overview
 I wrote the firmware and browser controller for UCD Elecsoc's RoboRumble, a robotic car event. Each robot runs an ESP32-C6 that advertises itself over Bluetooth Low Energy. Contestants open a web page in Chrome on their laptop, connect straight to their robot (no app, server or router needed), and drive it with the keyboard.
 
+[![Two RoboRumble robots driving](docs/robots-in-action.gif)](docs/robots-in-action.mp4)
+
+*Two robots driving. Click the preview for the full-quality video.*
+
 ## Features
 - **Direct Bluetooth Low Energy control**: Chrome's Web Bluetooth API connects the laptop to the robot. No WiFi, server or phone needed.
 - **Remappable keys**: WASD by default. Click any binding to change it, and conflicting keys are swapped automatically. Bindings are saved in the browser.
@@ -18,7 +22,6 @@ I wrote the firmware and browser controller for UCD Elecsoc's RoboRumble, a robo
 - 2 × DC motors
 - Separate battery pack for the motors
 
-<!-- Add a photo of the robot here, e.g. ![RoboRumble robot](docs/robot.jpg) -->
 
 ## How it Works
 The ESP32-C6 only supports Bluetooth Low Energy (not Classic), so the firmware uses the [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) library to expose a single writable GATT characteristic, using the Nordic UART service UUIDs.
